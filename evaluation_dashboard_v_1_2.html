@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <meta name="robots" content="noindex"> <!--  make the file not searchable -->
+    <title>Student Evaluation Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
+            background: linear-gradient(135deg, #121212, #2b2b2b); /* sleek black to dark gray */
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        /* .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        } */
+        .header {
+            background: linear-gradient(135deg, #FFC72C, #FFB000);
+            color: black;
+            padding: 30px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: rgba(52, 152, 219, 0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid rgba(52, 152, 219, 0.1);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        select, button {
+            padding: 12px 20px;
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        select:focus, button:focus {
+            outline: none;
+            border-color: #2980b9;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        button {
+            /* background: linear-gradient(135deg, #3498db, #2980b9); */
+            background: linear-gradient(135deg, #FFC72C, #FFB000);
+            color: black;
+            /* color: white; */
+            cursor: pointer;
+            font-weight: 600; 
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .dashboard {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .chart-container:hover {
+            transform: translateY(-5px);
+        }
+
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .stats-grid {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            /* background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white; */
+            background: linear-gradient(135deg, #FFC72C, #FFB000);
+            color: black;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(116, 185, 255, 0.3);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <!-- <h1>📊 Student Evaluation Dashboard</h1> -->
+            <h1> Student Evaluation Dashboard</h1>
+            <p>Interactive Analysis of Teaching Effectiveness Data</p>
+            <p>Question in Review: The instructor, Charles Kang, was effective in helping me learn.</p>
+            <p>Period: Fall 2021 - Summer 2025</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="viewType">View Type:</label>
+                <select id="viewType">
+                    <option value="semester">By Semester</option>
+                    <option value="year">By Year</option>
+                    <option value="course">By Course</option>
+                    <option value="scores">Score Distribution</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="courseFilter">Course Filter:</label>
+                <select id="courseFilter">
+                    <option value="all">All Courses</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="yearFilter">Year Filter:</label>
+                <select id="yearFilter">
+                    <option value="all">All Years</option>
+                </select>
+            </div>
+            
+            <button onclick="updateCharts()">Update Dashboard</button>
+        </div>
+
+        <div class="dashboard">
+            <div class="chart-container">
+                <!-- <div class="chart-title">Mean Scores Over Time</div> -->
+                <div id="chartTitle" class="chart-title">Mean Scores Over Time</div>
+                <div class="chart-wrapper">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-title"> Score Distribution (student-weighted)<br>Bar Chart</div>
+                <div class="chart-wrapper">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalCourses">-</div>
+                    <div class="stat-label">Total Sections</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgScore">-</div>
+                    <div class="stat-label">Average of Course-Level Mean(s) <br>(out of 4.0)</div>
+                </div>
+
+
+                <div class="stat-card">
+                    <div class="stat-value" id="totalResponses">-</div>
+                    <div class="stat-label">Total Responses</div>
+                </div>
+            <div class="stat-card">
+                <div class="stat-value" id="weightedAvgScore">-</div>
+                <div class="stat-label">Average of Score Distribution<br>(out of 4.0)</div>
+            </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="bestSemester">-</div>
+                    <div class="stat-label">Best Semester</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let evaluationData = [];
+        let mainChart, distributionChart;
+
+        // Embedded CSV data
+        const csvData = `Year,Term,Course,CRN,Mean,Out_of ,Response_count,,,,,score_4,score_3,score_2,score_1,"(4=Strongly Agree, 3 = Agree, 2 = Disagree, 1 = Strongly Disagree)"
+2021,Fall,Linear Algebra I,82865,3.6,4,5,,,,,3,2,0,0,
+2021,Fall,Linear Algebra I,82866,3.7,4,7,,,,,5,2,0,0,
+2021,Fall,Linear Algebra I,82887,3.1,4,7,,,,,3,2,2,0,
+2021,Fall,Calculus II,83629,4,4,7,,,,,6,1,0,0,
+2022,Spring,Linear Algebra I,11458,3.7,4,3,,,,,2,1,0,0,
+2022,Spring,Linear Algebra I,11459,4,4,2,,,,,2,0,0,0,
+2022,Spring,Calculus I,13208,4,4,2,,,,,2,0,0,0,
+2022,Spring,Calculus I,13209,3,4,2,,,,,1,0,1,0,
+2022,Summer,Calculus II,50749,3,4,1,,,,,0,1,0,0,
+2022,Summer,Linear Algebra I,50782,2.5,4,2,,,,,1,0,0,1,
+2022,Fall,Linear Algebra I,83484,3,4,3,,,,,1,1,1,0,
+2022,Fall,Linear Algebra I,83485,3.5,4,2,,,,,1,1,0,0,
+2022,Fall,Linear Algebra I,83495,3.5,4,2,,,,,1,1,0,0, 
+2022,Fall,Calculus II,83792,3.7,4,3,,Raw Mean,Out of 5,,2,1,0,0,Converted Mean (Out of 4)
+2023,Spring,Linear Algebra I,12129, 3.22 ,4,23,,4.22,5,,11,9,0,3,3.217391304
+2023,Spring,Linear Algebra I,12096, 3.55 ,4,22,,4.55,5,,12,10,0,0,3.545454545
+2023,Spring,Calculus II,12350, 3.57 ,4,23,,4.57,5,,15,7,0,1,3.565217391
+2023,Spring,Calculus II,12338, 3.45 ,4,22,,4.45,5,,13,7,1,1,3.454545455
+2023,Summer,Linear Algebra I,50892,3.33,4,6,,,,,4,2,0,0,
+2023,Summer,Calculus II,50891,3.89,4,9,,,,,6,3,0,0,
+2023,Fall,Linear Algebra I,83051,3.58,4,12,,,,,9,2,0,1,
+2023,Fall,Linear Algebra I,83045,3.44,4,9,,,,,5,3,1,0,
+2023,Fall,Linear Algebra I,83044,3.41,4,17,,,,,7,10,0,0,
+2023,Fall,Calculus II,83215,3.54,4,13,,,,,8,4,1,0,
+2023,Fall,Calculus II,83195,3.56,4,9,,,,,7,0,2,0,
+2024,Spring,Linear Algebra I,13786,3.73,4,11,,,,,8,3,0,0,
+2024,Spring,Linear Algebra I,13781,3.29,4,7,,,,,4,2,0,1,
+2024,Spring,Calculus II,17553,3.5,4,10,,,,,7,1,2,0,
+2024,Spring,Calculus II,13952,3.83,4,18,,,,,15,3,0,0,
+2024,Spring,Calculus II,13939,3.5,4,20,,,,,12,7,0,1,
+2024,Summer,Linear Algebra I,51232,3.8,4,5,,,,,4,1,0,0,
+2024,Summer,Calculus II,51212,3.5,4,4,,,,,2,2,0,0,
+2024,Fall,Calculus II,85576,3.71,4,14,,,,,11,2,1,0,
+2024,Fall,ODE,85841,3.83,4,12,,,,,10,2,0,0,
+2024,Fall,ODE,85842,3.45,4,11,,,,,7,2,2,0,
+2024,Fall,ODE,88897,3,4,11,,,,,6,2,0,3,
+2024,Fall,Linear Algebra I,85493,3.5,4,8,,,,,6,1,0,1,
+2025,Spring,Calculus II,10582,3.83,4,12,,,,,10,2,0,0,
+2025,Spring,Calculus II,10584,3.8,4,10,,,,,8,2,0,0,
+2025,Spring,Discrete Math,10502,3.27,4,11,,,,,6,2,3,0,
+2025,Spring,Discrete Math,10504,3.92,4,12,,,,,11,1,0,0,
+2025,Summer,Calculus II,51305,4,4,8,,,,,8,0,0,0,`;
+
+        // Load and parse CSV data
+        async function loadData() {
+            try {
+                const parsed = Papa.parse(csvData, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    delimitersToGuess: [',', '\t', '|', ';']
+                });
+
+                evaluationData = parsed.data.filter(row => 
+                    row.Year && row.Term && row.Course && row.Mean !== null && row.Mean !== undefined
+                ).map(row => ({
+                    ...row,
+                    Mean: parseFloat(row.Mean) || 0,
+                    Response_count: parseInt(row.Response_count) || 0,
+                    score_4: parseInt(row.score_4) || 0,
+                    score_3: parseInt(row.score_3) || 0,
+                    score_2: parseInt(row.score_2) || 0,
+                    score_1: parseInt(row.score_1) || 0,
+                    semester: `${row.Year} ${row.Term}`,
+                    semesterOrder: getSemesterOrder(row.Year, row.Term)
+                }));
+
+                // Sort by chronological order
+                evaluationData.sort((a, b) => a.semesterOrder - b.semesterOrder);
+
+                populateFilters();
+                updateCharts();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.querySelector('.dashboard').innerHTML = '<div class="loading">Error loading data. Please check the file.</div>';
+            }
+        }
+
+        function getSemesterOrder(year, term) {
+            const termOrder = { 'Spring': 1, 'Summer': 2, 'Fall': 3 };
+            return year * 10 + (termOrder[term] || 0);
+        }
+
+        function populateFilters() {
+            const courses = [...new Set(evaluationData.map(d => d.Course))].sort();
+            const years = [...new Set(evaluationData.map(d => d.Year))].sort();
+
+            const courseFilter = document.getElementById('courseFilter');
+            const yearFilter = document.getElementById('yearFilter');
+
+            courses.forEach(course => {
+                const option = document.createElement('option');
+                option.value = course;
+                option.textContent = course;
+                courseFilter.appendChild(option);
+            });
+
+            years.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearFilter.appendChild(option);
+            });
+        }
+
+        function getFilteredData() {
+            const viewType = document.getElementById('viewType').value;
+            const courseFilter = document.getElementById('courseFilter').value;
+            const yearFilter = document.getElementById('yearFilter').value;
+
+            let filtered = evaluationData.filter(d => {
+                if (courseFilter !== 'all' && d.Course !== courseFilter) return false;
+                if (yearFilter !== 'all' && d.Year != yearFilter) return false;
+                return true;
+            });
+
+            return filtered;
+        }
+
+        function updateCharts() {
+            const viewType = document.getElementById('viewType').value;
+            const filteredData = getFilteredData();
+
+            // Update the chart title based on selected view type
+            const chartTitle = document.getElementById('chartTitle');
+            switch (viewType) {
+                case 'semester':
+                case 'year':
+                    chartTitle.innerText = "Course-Level Mean";
+                    break;
+                case 'course':
+                    chartTitle.innerText = "Mean Score by Course";
+                    break;
+                case 'scores':
+                    chartTitle.innerHTML = "Score Distribution (student-weighted) <br>Pie Chart"; // use <br> for line break
+                    break;
+            }
+
+
+            if (mainChart) mainChart.destroy();
+            if (distributionChart) distributionChart.destroy();
+
+            const ctx1 = document.getElementById('mainChart').getContext('2d');
+            const ctx2 = document.getElementById('distributionChart').getContext('2d');
+
+            switch(viewType) {
+                case 'semester':
+                    createSemesterChart(ctx1, filteredData);
+                    createScoreDistributionChart(ctx2, filteredData);
+                    break;
+                case 'course':
+                    createCourseChart(ctx1, filteredData);
+                    createScoreDistributionChart(ctx2, filteredData);
+                    break;
+                case 'year':
+                    createYearChart(ctx1, filteredData);
+                    createScoreDistributionChart(ctx2, filteredData);
+                    break;
+                case 'scores':
+                    createDetailedScoreChart(ctx1, filteredData);
+                    createScoreDistributionChart(ctx2, filteredData);
+                    break;
+            }
+
+            updateStats();
+        }
+
+        function createSemesterChart(ctx, data) {
+            const semesterData = {};
+            
+            data.forEach(d => {
+                if (!semesterData[d.semester]) {
+                    semesterData[d.semester] = { total: 0, count: 0, responses: 0 };
+                }
+                semesterData[d.semester].total += d.Mean;
+                semesterData[d.semester].count += 1;
+                semesterData[d.semester].responses += d.Response_count;
+            });
+
+            const semesters = Object.keys(semesterData).sort((a, b) => {
+                const [yearA, termA] = a.split(' ');
+                const [yearB, termB] = b.split(' ');
+                return getSemesterOrder(parseInt(yearA), termA) - getSemesterOrder(parseInt(yearB), termB);
+            });
+
+            const means = semesters.map(s => (semesterData[s].total / semesterData[s].count).toFixed(2));
+            const responses = semesters.map(s => semesterData[s].responses);
+
+            mainChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: semesters,
+                    datasets: [{
+                        label: 'Average Mean Score',
+                        data: means,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#2980b9',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 4,
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            title: { display: true, text: 'Mean Score (out of 4)' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(0,0,0,0.1)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function createCourseChart(ctx, data) {
+            const courseData = {};
+            
+            data.forEach(d => {
+                if (!courseData[d.Course]) {
+                    courseData[d.Course] = { total: 0, count: 0 };
+                }
+                courseData[d.Course].total += d.Mean;
+                courseData[d.Course].count += 1;
+            });
+
+            const courses = Object.keys(courseData);
+            const means = courses.map(c => (courseData[c].total / courseData[c].count).toFixed(2));
+
+            const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+
+            mainChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: courses,
+                    datasets: [{
+                        label: 'Average Mean Score',
+                        data: means,
+                        backgroundColor: courses.map((_, i) => colors[i % colors.length]),
+                        borderWidth: 0,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 4,
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            title: { display: true, text: 'Mean Score (out of 4)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function createYearChart(ctx, data) {
+            const yearData = {};
+            
+            data.forEach(d => {
+                if (!yearData[d.Year]) {
+                    yearData[d.Year] = { total: 0, count: 0 };
+                }
+                yearData[d.Year].total += d.Mean;
+                yearData[d.Year].count += 1;
+            });
+
+            const years = Object.keys(yearData).sort();
+            const means = years.map(y => (yearData[y].total / yearData[y].count).toFixed(2));
+
+            mainChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Average Mean Score',
+                        data: means,
+                        backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                        borderWidth: 0,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 4,
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            title: { display: true, text: 'Mean Score (out of 4)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function createDetailedScoreChart(ctx, data) {
+            const scoreData = { score_4: 0, score_3: 0, score_2: 0, score_1: 0 };
+            
+            data.forEach(d => {
+                scoreData.score_4 += d.score_4;
+                scoreData.score_3 += d.score_3;
+                scoreData.score_2 += d.score_2;
+                scoreData.score_1 += d.score_1;
+            });
+
+            mainChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Strongly Agree (4)', 'Agree (3)', 'Disagree (2)', 'Strongly Disagree (1)'],
+                    datasets: [{
+                        data: [scoreData.score_4, scoreData.score_3, scoreData.score_2, scoreData.score_1],
+                        // backgroundColor: ['#2ecc71', '#3498db', '#f39c12', '#e74c3c'],
+                        backgroundColor: ['#2ecc71', '#7ED957', '#f39c12', '#e74c3c'],
+                        
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createScoreDistributionChart(ctx, data) {
+            const totalScores = { score_4: 0, score_3: 0, score_2: 0, score_1: 0 };
+            
+            data.forEach(d => {
+                totalScores.score_4 += d.score_4;
+                totalScores.score_3 += d.score_3;
+                totalScores.score_2 += d.score_2;
+                totalScores.score_1 += d.score_1;
+            });
+
+            distributionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Strongly Agree (4)', 'Agree (3)', 'Disagree (2)', 'Strongly Disagree (1)'],
+                    datasets: [{
+                        label: 'Count',
+                        data: [totalScores.score_4, totalScores.score_3, totalScores.score_2, totalScores.score_1],
+                        // backgroundColor: ['#2ecc71', '#3498db', '#f39c12', '#e74c3c'],
+                        // backgroundColor: ['#2ecc71', '#A8E6A3', '#f39c12', '#e74c3c'],
+                        backgroundColor: ['#2ecc71', '#7ED957', '#f39c12', '#e74c3c'],
+                        borderWidth: 0,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            title: { display: true, text: 'Number of Responses' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+        function calculateWeightedAverage(data) {
+                let totalScore = 0;
+                let totalResponses = 0;
+
+                data.forEach(d => {
+                    totalScore += (d.score_4 * 4) + (d.score_3 * 3) + (d.score_2 * 2) + (d.score_1 * 1);
+                    totalResponses += d.score_4 + d.score_3 + d.score_2 + d.score_1;
+                });
+
+                return totalResponses > 0 ? (totalScore / totalResponses) : NaN;
+            }
+
+
+        function updateStats() {
+            const filteredData = getFilteredData();
+            
+            const totalCourses = filteredData.length;
+            const avgScore = (filteredData.reduce((sum, d) => sum + d.Mean, 0) / filteredData.length).toFixed(2);
+            const weightedAvgScore = calculateWeightedAverage(filteredData).toFixed(2);
+            const totalResponses = filteredData.reduce((sum, d) => sum + d.Response_count, 0);
+            
+            // Find best semester
+            const semesterAvgs = {};
+            filteredData.forEach(d => {
+                if (!semesterAvgs[d.semester]) {
+                    semesterAvgs[d.semester] = { total: 0, count: 0 };
+                }
+                semesterAvgs[d.semester].total += d.Mean;
+                semesterAvgs[d.semester].count += 1;
+            });
+            
+            let bestSemester = '';
+            let bestAvg = 0;
+            Object.keys(semesterAvgs).forEach(semester => {
+                const avg = semesterAvgs[semester].total / semesterAvgs[semester].count;
+                if (avg > bestAvg) {
+                    bestAvg = avg;
+                    bestSemester = semester;
+                }
+            });
+
+            document.getElementById('totalCourses').textContent = totalCourses;
+            document.getElementById('avgScore').textContent = avgScore;
+            document.getElementById('weightedAvgScore').textContent = weightedAvgScore;
+            document.getElementById('totalResponses').textContent = totalResponses;
+            document.getElementById('bestSemester').textContent = bestSemester || 'N/A';
+        }
+
+        // Initialize dashboard
+        window.addEventListener('load', loadData);
+    </script>
+</body>
+</html>
